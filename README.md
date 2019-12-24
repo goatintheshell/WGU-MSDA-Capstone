@@ -73,10 +73,9 @@ Research Question
 
 Do the variables price, country, and variety accurately predict the variable points?
 
->   H0 The independent variables do not accurately predict the dependent
->   variable.
+>   H<sub>0</sub> The independent variables do not accurately predict the dependent variable.
 
->   HA The independent variables accurately predict the dependent variable.
+>   H<sub>A</sub> The independent variables accurately predict the dependent variable.
 
 A multiple linear regression model will be built to assess this question.
 
@@ -85,11 +84,8 @@ Data Collection
 
 This dataset was taken from Kaggle. It was originally collected from Wine
 Enthusiast (winemag.com) in 2017. Wine Enthusiast is a popular magazine that has
-been in print for over
-
-30 years, making it a trustworthy source of reviews (Flowers, 2015).
-
->   Retrieved from *https://www.kaggle.com/zynicide/wine-reviews*
+been in print for over 30 years, making it a trustworthy source of reviews (Flowers, 2015).
+Retrieved from *https://www.kaggle.com/zynicide/wine-reviews*
 
 The data consists of two .csv files, winemag-data-130k-v2 and
 winemag-data_first150k.
@@ -110,43 +106,67 @@ Data Extraction and Preparation
 
 To begin, a library was created in SAS Studio:
 
->   libname winedata '/folders/myfolders/wine-data';
+```
+libname winedata '/folders/myfolders/wine-data';
+```
 
->   The first csv file was imported using the following code:
+The first csv file was imported using the following code:
+```
 
->   %web_drop_table(WORK.IMPORT); filename one30
->   "/folders/myfolders/winemag-data-130kv2.csv"; proc import datafile=one30
+  %web_drop_table(WORK.IMPORT);
 
->   dbms=csv out=import; getnames=yes; guessingrows=100;
+   filename one30 "/folders/myfolders/winemag-data-130kv2.csv";
 
->   run; proc contents data=import; run;
+   proc import datafile=one30 dbms=csv out=import;
+   getnames=yes;
+   guessingrows=100;
+   run;
 
->   %web_open_table(WORK.IMPORT);
+   proc contents data=import;
+   run;
+
+   %web_open_table(WORK.IMPORT);
+
+```
 
 The second csv file was imported using the following code:
 
->   %web_drop_table(WORK.IMPORT1); filename one50
->   "/folders/myfolders/winemagdata_first150k.csv"; proc import datafile=one50
+```
+   %web_drop_table(WORK.IMPORT1);
 
->   dbms=csv out=import1; getnames=yes; guessingrows=100;
+   filename one50 "/folders/myfolders/winemagdata_first150k.csv";
 
->   run; proc contents data=import1; run;
+   proc import datafile=one50 dbms=csv out=import1;
+   getnames=yes;
+   guessingrows=100;
+   run;
+   
+   proc contents data=import1;
+   run;
 
->   %web_open_table(WORK.IMPORT1);
+   %web_open_table(WORK.IMPORT1);
+```
 
 A master dataset containing both csv files (dropping unneeded variables) was
 created with the following code:
 
->   data winedata.master(drop= taster_name taster_twitter_handle title var1)
->   replace; length country \$9; set import1 import; run;
+```
+   data winedata.master(drop= taster_name taster_twitter_handle title var1)
+   replace;
+   length country $9;
+   set import1 import;
+   run;
+```
 
 \*Country was set to a length of 9, the shorter of the two in the datasets in
 order to prevent duplicated entries
 
 Proc contents was used to view information about the newly created dataset:
 
->   proc contents data=winedata.master; run;
-
+```
+   proc contents data=winedata.master;
+   run;
+```
 
 ![](media/77febd066be2ae04d15f4b7c4e3ff26a.jpg)
 
@@ -159,7 +179,10 @@ character/categorical variables while price is numeric/continuous.
 
 The proc means procedure was used to gather further information about the dataset:
 
->   proc means data=winedata.master nmiss; run;
+```
+   proc means data=winedata.master nmiss;
+   run;
+```
 
 ![](media/703e2b10f373b805a51e47d1ce0dc815.jpg)
 
@@ -169,16 +192,21 @@ remedied with median imputation.
 
 Median imputation was performed with the following code:
 
->   proc stdize data=winedata.master reponly method=median
->   out=winedata.master_imp; var price; run;
+```
+   proc stdize data=winedata.master reponly method=median
+   out=winedata.master_imp;
+   var price;
+   run;
+```
 
->   A new dataset was created, master_imp. This dataset was then further
->   cleaned:
+A new dataset was created, master_imp. This dataset was then further cleaned:
 
->   data winedata.data_clean; set winedata.master_imp; where points is not
->   missing and points \>= 80;
-
->   run;
+```
+   data winedata.data_clean;
+   set winedata.master_imp;
+   where points is not missing and points >= 80;
+   run;
+```
 
 Only observations with a value of 80 and above will be considered for
 observation and saved to the new dataset, data_clean. Wine Enthusiast states
@@ -190,24 +218,33 @@ during this step.
 The data was then split into training and test datasets, the first step being to
 sort by the dependent variable points:
 
->   proc sort data=winedata.data_clean out=wine_sort;
-
->   by points;
-
->   run;
+```
+   proc sort data=winedata.data_clean out=wine_sort;
+   by points;
+   run;
+```
 
 A new data set was created wine_sort which was then split into training (60%)
 and validation (40%) datasets:
 
->   proc surveyselect data=wine_sort
+```
+   proc surveyselect data=wine_sort
+   method=srs samprate= .60 out=wine_select seed= 2222 outall;
+   strata points;
+   run;
+   
+   data winedata.train;
+   set wine_select;
+   if selected= 1;
+   drop selected SamplingWeight SelectionProb;
+   run;
 
->   method=srs samprate= .60 out=wine_select seed= 2222 outall; strata points;
-
->   run; data winedata.train; set wine_select; if selected= 1; drop selected
->   SamplingWeight SelectionProb; run;
-
->   data winedata.validate; set wine_select; if selected= 0; drop selected
->   SamplingWeight SelectionProb; run;
+   data winedata.validate;
+   set wine_select;
+   if selected= 0;
+   drop selected SamplingWeight SelectionProb;
+   run;
+```
 
 The seed “2222” was used, so that if necessary the step can be repeated with the
 same results. Once the data was split, a new variable selected was created. If
@@ -230,8 +267,11 @@ software, growing more than 3x faster than the overall market (SAS, 2019).
 
 The box plot of country vs points was created with the following code:
 
->   proc sgplot data=winedata.train; vbox points / category=country
->   connect=mean; run;
+```
+   proc sgplot data=winedata.train;
+   vbox points / category=country connect=mean;
+   run;
+```
 
 ![](media/31a9bd670c54ec3395a2a85b41c34ec3.jpg)
 
@@ -239,15 +279,25 @@ The box plot of variety vs points proved to have too many unique observations, i
 
 The scatterplot of price vs points was created with the following code:
 
->   proc sgscatter data=winedata.train; plot points\*price / reg; run;
+```
+   proc sgscatter data=winedata.train;
+   plot points*price / reg;
+   run;
+```
 
 ![](media/c67be22e4c67d9513b15e79dbde8f38b.jpg)
 
 An ANOVA test was performed with a test for Homogeneity of Variance (Levene)
 included on the variable country:
 
->   proc glm data=winedata.train plots=diagnostics; class country; model
->   points=country; means country / hovtest=levene; run; quit;
+```
+   proc glm data=winedata.train plots=diagnostics;
+   class country;
+   model points=country;
+   means country / hovtest=levene;
+   run;
+   quit;
+```
 
 ![](media/a8dab01ddc45add04112699be540b352.jpg)
 
@@ -257,9 +307,12 @@ The test for HoV produced a p-value of \< .0001, therefore this ANOVA test canno
 
 A Kruskal Wallis test was done in place of ANOVA due to Heterogeneity of Variance:
 
->   proc npar1way data=winedata.train; class country; var points;
-
->   run;
+```
+   proc npar1way data=winedata.train;
+   class country;
+   var points;
+   run;
+```
 
 ![](media/920c92a202ed6f2b85626279497c48f8.jpg)
 
@@ -268,8 +321,13 @@ significant independent variable.
 
 A Post Hoc test was run on the variable country using Tukey’s adjustment:
 
->   proc glm data=winedata.train; class country; model points = country; lsmeans
->   country / pdiff=all adjust=tukey; run; quit;
+```
+   proc glm data=winedata.train;
+   class country;
+   model points = country;
+   lsmeans country / pdiff=all adjust=tukey;
+   run; quit;
+```
 
 ![](media/914a5c4cca551cbf8ebc12cf71223cae.jpg)
 
@@ -278,23 +336,28 @@ This test also showed significance with a Pr \> F equal to \<.0001
 An ANOVA test was performed with a test for Homogeneity of Variance (Levene)
 included on the variable variety:
 
->   proc glm data=winedata.train plots=diagnostics; class variety; model
->   points=variety; means variety / hovtest=levene; run; quit;
+```
+   proc glm data=winedata.train plots=diagnostics;
+   class variety;
+   model points=variety;
+   means variety / hovtest=levene;
+   run; quit;
+```
 
 ![](media/455ed1158ff40d55d39f32dccfe794d4.jpg)
 
->   The test for HoV produced a p-value of \< .0001, therefore this ANOVA test
->   cannot be
-
-trusted.
+The test for HoV produced a p-value of \< .0001, therefore this ANOVA test cannot be trusted.
 
 ![](media/c2c332d7ab8b49e1d463c2feea8df0a9.jpg)
 
 A Kruskal Wallis test was done in place of ANOVA due to Heterogeneity of Variance:
 
->   proc npar1way data=winedata.train; class variety; var points;
-
->   run;
+```
+   proc npar1way data=winedata.train;
+   class variety;
+   var points;
+   run;
+```
 
 ![](media/43e513b9ff65fc318ce10275782fcd49.jpg)
 
@@ -306,7 +369,12 @@ timed out and was unable to be used for analysis.
 
 The proc corr procedure was used on the variable price to find the Pearson correlation:
 
->   proc corr data=winedata.train; var price; with points; run;
+```
+   proc corr data=winedata.train;
+   var price;
+   with points;
+   run;
+```
 
 ![](media/df8fed93c691c33c35e3a5ae7e7c20de.jpg)
 
@@ -315,18 +383,21 @@ particularly strong one at .41. The p-value indicates that Rho is likely not 0.
 
 Multiple linear regression was used to create the model with the following hypotheses:
 
-> H0 The variables price, country, and variety do not predict the variable points
+> H<sub>0</sub> The variables price, country, and variety do not predict the variable points
 better than a baseline model.
 
-> HA The variables price, country, and variety predict the variable points better
+> H<sub>A</sub> The variables price, country, and variety predict the variable points better
 than a baseline model.
 
 The following code was used to create the multiple linear regression model:
 
->   proc glm data=winedata.train;
-
->   class country variety; model points= country price variety; store
->   winedata.score; run; quit;
+```
+   proc glm data=winedata.train;
+   class country variety;
+   model points= country price variety;
+   store winedata.score;
+   run; quit;
+```
 
 The model is stored in score so that it may later be applied to the validation dataset.
 
@@ -343,22 +414,29 @@ this model predicts better than a baseline model.
 
 The validation dataset was scored using the following code:
 
->   proc plm restore=winedata.score; score data=winedata.validate out=validated;
->   code file="/folders/myfolders/wine-data/scoring.sas"; run; data scored; set
->   winedata.validate;
-
->   %include "/folders/myfolders/wine-data/scoring.sas"; run;
+```
+   proc plm restore=winedata.score;
+   score data=winedata.validate out=validated;
+   code file="/folders/myfolders/wine-data/scoring.sas";
+   run;
+   
+   data scored;
+   set winedata.validate;
+   %include "/folders/myfolders/wine-data/scoring.sas";
+   run;
+```
 
 A new dataset was created, scored. This dataset contains a value P_points which
 is the estimated value for points from the model.
 
 The datasets were then compared using the following code:
 
->   proc compare base=validated compare=scored criterion=0.001;
-
->   var points; with P_points;
-
->   run;
+```
+   proc compare base=validated compare=scored criterion=0.001;
+   var points;
+   with P_points;
+   run;
+```
 
 ![](media/276201c2c91950f2de5fa0d934bd0f73.jpg)
 
