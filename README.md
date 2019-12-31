@@ -107,12 +107,12 @@ Data Extraction and Preparation
 
 To begin, a library was created in SAS Studio:
 
-```
+```SAS
 libname winedata '/folders/myfolders/wine-data';
 ```
 
 The first csv file was imported using the following code:
-```
+```SAS
 
   %web_drop_table(WORK.IMPORT);
 
@@ -132,7 +132,7 @@ The first csv file was imported using the following code:
 
 The second csv file was imported using the following code:
 
-```
+```SAS
    %web_drop_table(WORK.IMPORT1);
 
    filename one50 "/folders/myfolders/winemagdata_first150k.csv";
@@ -151,7 +151,7 @@ The second csv file was imported using the following code:
 A master dataset containing both csv files (dropping unneeded variables) was
 created with the following code:
 
-```
+```SAS
    data winedata.master(drop= taster_name taster_twitter_handle title var1)
    replace;
    length country $9;
@@ -164,7 +164,7 @@ order to prevent duplicated entries
 
 Proc contents was used to view information about the newly created dataset:
 
-```
+```SAS
    proc contents data=winedata.master;
    run;
 ```
@@ -180,7 +180,7 @@ character/categorical variables while price is numeric/continuous.
 
 The proc means procedure was used to gather further information about the dataset:
 
-```
+```SAS
    proc means data=winedata.master nmiss;
    run;
 ```
@@ -193,7 +193,7 @@ remedied with median imputation.
 
 Median imputation was performed with the following code:
 
-```
+```SAS
    proc stdize data=winedata.master reponly method=median
    out=winedata.master_imp;
    var price;
@@ -202,7 +202,7 @@ Median imputation was performed with the following code:
 
 A new dataset was created, master_imp. This dataset was then further cleaned:
 
-```
+```SAS
    data winedata.data_clean;
    set winedata.master_imp;
    where points is not missing and points >= 80;
@@ -219,7 +219,7 @@ during this step.
 The data was then split into training and test datasets, the first step being to
 sort by the dependent variable points:
 
-```
+```SAS
    proc sort data=winedata.data_clean out=wine_sort;
    by points;
    run;
@@ -228,7 +228,7 @@ sort by the dependent variable points:
 A new data set was created wine_sort which was then split into training (60%)
 and validation (40%) datasets:
 
-```
+```SAS
    proc surveyselect data=wine_sort
    method=srs samprate= .60 out=wine_select seed= 2222 outall;
    strata points;
@@ -268,7 +268,7 @@ software, growing more than 3x faster than the overall market (SAS, 2019).
 
 The box plot of country vs points was created with the following code:
 
-```
+```SAS
    proc sgplot data=winedata.train;
    vbox points / category=country connect=mean;
    run;
@@ -280,7 +280,7 @@ The box plot of variety vs points proved to have too many unique observations, i
 
 The scatterplot of price vs points was created with the following code:
 
-```
+```SAS
    proc sgscatter data=winedata.train;
    plot points*price / reg;
    run;
@@ -291,7 +291,7 @@ The scatterplot of price vs points was created with the following code:
 An ANOVA test was performed with a test for Homogeneity of Variance (Levene)
 included on the variable country:
 
-```
+```SAS
    proc glm data=winedata.train plots=diagnostics;
    class country;
    model points=country;
@@ -308,7 +308,7 @@ The test for HoV produced a p-value of \< .0001, therefore this ANOVA test canno
 
 A Kruskal Wallis test was done in place of ANOVA due to Heterogeneity of Variance:
 
-```
+```SAS
    proc npar1way data=winedata.train;
    class country;
    var points;
@@ -322,7 +322,7 @@ significant independent variable.
 
 A Post Hoc test was run on the variable country using Tukey’s adjustment:
 
-```
+```SAS
    proc glm data=winedata.train;
    class country;
    model points = country;
@@ -337,7 +337,7 @@ This test also showed significance with a Pr \> F equal to \<.0001
 An ANOVA test was performed with a test for Homogeneity of Variance (Levene)
 included on the variable variety:
 
-```
+```SAS
    proc glm data=winedata.train plots=diagnostics;
    class variety;
    model points=variety;
@@ -353,7 +353,7 @@ The test for HoV produced a p-value of \< .0001, therefore this ANOVA test canno
 
 A Kruskal Wallis test was done in place of ANOVA due to Heterogeneity of Variance:
 
-```
+```SAS
    proc npar1way data=winedata.train;
    class variety;
    var points;
@@ -370,7 +370,7 @@ timed out and was unable to be used for analysis.
 
 The proc corr procedure was used on the variable price to find the Pearson correlation:
 
-```
+```SAS
    proc corr data=winedata.train;
    var price;
    with points;
@@ -392,7 +392,7 @@ than a baseline model.
 
 The following code was used to create the multiple linear regression model:
 
-```
+```SAS
    proc glm data=winedata.train;
    class country variety;
    model points= country price variety;
@@ -415,7 +415,7 @@ this model predicts better than a baseline model.
 
 The validation dataset was scored using the following code:
 
-```
+```SAS
    proc plm restore=winedata.score;
    score data=winedata.validate out=validated;
    code file="/folders/myfolders/wine-data/scoring.sas";
@@ -432,7 +432,7 @@ is the estimated value for points from the model.
 
 The datasets were then compared using the following code:
 
-```
+```SAS
    proc compare base=validated compare=scored criterion=0.001;
    var points;
    with P_points;
